@@ -1,0 +1,43 @@
+name: Sync Apps
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "SDK version to sync. Leave blank to use the latest npm version."
+        required: false
+        type: string
+
+jobs:
+  sync-apps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Resolve SDK version
+        id: version
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="$(npm view @shiryustudios/team-app-sdk version)"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Sync published SDK to app repos
+        run: node ./scripts/sync-app-sdk.mjs
+        env:
+          APPS_REPO_TOKEN: ${{ secrets.APPS_REPO_TOKEN }}
+          GITHUB_ORG: Shiryu-Studios-LLC
+          SDK_PACKAGE_NAME: "@shiryustudios/team-app-sdk"
+          SDK_VERSION: ${{ steps.version.outputs.version }}
