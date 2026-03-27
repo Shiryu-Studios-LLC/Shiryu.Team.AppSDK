@@ -1,4 +1,4 @@
-# @shiryu/team-app-sdk
+# @shiryustudios/team-app-sdk
 
 Shared SDK for embedded Shiryu Team apps.
 
