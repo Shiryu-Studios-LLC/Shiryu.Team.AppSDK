@@ -1,3 +1,5 @@
+import { applyEmbeddedSurfaceSettings, type TeamSurfaceSettings } from "./surface";
+
 const DEFAULT_TEAM_ORIGIN = "https://team.shiryustudios.com";
 const DEFAULT_RPC_TIMEOUT_MS = 15000;
 
@@ -55,6 +57,7 @@ export interface TeamAppSdkRequestOptions {
 export interface TeamAppSdkConfig {
   teamOrigin?: string;
   timeoutMs?: number;
+  surface?: TeamSurfaceSettings;
 }
 
 export interface AccessControlUpdateUserInput {
@@ -310,6 +313,7 @@ function isResponseForRequest(
 export function createTeamAppSdk(config: TeamAppSdkConfig = {}) {
   const teamOrigin = config.teamOrigin || DEFAULT_TEAM_ORIGIN;
   const timeoutMs = config.timeoutMs || DEFAULT_RPC_TIMEOUT_MS;
+  applyEmbeddedSurfaceSettings(config.surface);
 
   function sendMessage(
     message: TeamAppSdkApiRequestMessage | TeamAppSdkRpcRequestMessage,
