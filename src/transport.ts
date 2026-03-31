@@ -406,6 +406,37 @@ export function createTeamAppSdk(config: TeamAppSdkConfig = {}) {
     return payload as T;
   }
 
+  async function requestJson<T = unknown>(
+    path: string,
+    options: RequestInit = {},
+  ): Promise<T> {
+    const response = await request(path, options);
+    const payload = await response.json<{ error?: string } | T>();
+    if (!response.ok) {
+      throw new Error(
+        typeof payload === "object" &&
+          payload !== null &&
+          "error" in payload &&
+          typeof payload.error === "string"
+          ? payload.error
+          : `Team API request failed for ${path}.`,
+      );
+    }
+    return payload as T;
+  }
+
+  async function rpcWithRouteFallback<T>(
+    name: TeamRpcMethodName,
+    fallback: () => Promise<T>,
+    args?: unknown,
+  ) {
+    try {
+      return await rpc<T>(name, args);
+    } catch {
+      return fallback();
+    }
+  }
+
   async function getCurrentUser() {
     return rpc<Record<string, unknown>>("auth.getCurrentUser");
   }
@@ -433,74 +464,211 @@ export function createTeamAppSdk(config: TeamAppSdkConfig = {}) {
   }
 
   const accessControl = {
-    listUsers: () => rpc<Array<Record<string, unknown>>>("accessControl.listUsers"),
-    listJobs: () => rpc<Array<Record<string, unknown>>>("accessControl.listJobs"),
+    listUsers: () =>
+      rpcWithRouteFallback<Array<Record<string, unknown>>>(
+        "accessControl.listUsers",
+        () => requestJson("/api/admin/users"),
+      ),
+    listJobs: () =>
+      rpcWithRouteFallback<Array<Record<string, unknown>>>(
+        "accessControl.listJobs",
+        () => requestJson("/api/admin/jobs"),
+      ),
     updateUser: (input: AccessControlUpdateUserInput) =>
-      rpc<Record<string, unknown>>("accessControl.updateUser", input),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "accessControl.updateUser",
+        () =>
+          requestJson(`/api/admin/users/${input.userId}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              company_email: input.company_email ?? null,
+              role: input.role,
+              status: input.status,
+              global_role: input.global_role,
+              job_title: input.job_title ?? null,
+              department: input.department ?? null,
+              job_positions: input.job_positions ?? [],
+            }),
+          }),
+        input,
+      ),
     activateUser: (userId: string) =>
-      rpc<Record<string, unknown>>("accessControl.activateUser", { userId }),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "accessControl.activateUser",
+        () =>
+          requestJson(`/api/admin/users/${userId}/activate`, {
+            method: "POST",
+          }),
+        { userId },
+      ),
     listAudit: (params?: Record<string, string | number | boolean | undefined>) =>
-      rpc<Array<Record<string, unknown>>>("accessControl.listAudit", params),
+      rpcWithRouteFallback<Array<Record<string, unknown>>>(
+        "accessControl.listAudit",
+        () => {
+          const searchParams = new URLSearchParams();
+          for (const [key, value] of Object.entries(params || {})) {
+            if (value === undefined) continue;
+            searchParams.set(key, String(value));
+          }
+          const query = searchParams.toString();
+          return requestJson(`/api/admin/audit${query ? `?${query}` : ""}`);
+        },
+        params,
+      ),
   };
 
   const teamDirectory = {
     listUsers: (canManageDirectory = true) =>
-      rpc<Array<Record<string, unknown>>>("teamDirectory.listUsers", {
-        canManageDirectory,
-      }),
+      rpcWithRouteFallback<Array<Record<string, unknown>>>(
+        "teamDirectory.listUsers",
+        () =>
+          requestJson(
+            canManageDirectory ? "/api/admin/users" : "/api/me/directory",
+          ),
+        { canManageDirectory },
+      ),
     listJobs: () =>
-      rpc<Array<Record<string, unknown>>>("teamDirectory.listJobs"),
+      rpcWithRouteFallback<Array<Record<string, unknown>>>(
+        "teamDirectory.listJobs",
+        () => requestJson("/api/admin/jobs"),
+      ),
     createUser: (input: TeamDirectoryCreateUserInput) =>
-      rpc<Record<string, unknown>>("teamDirectory.createUser", input),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "teamDirectory.createUser",
+        () =>
+          requestJson("/api/admin/users", {
+            method: "POST",
+            body: JSON.stringify(input),
+          }),
+        input,
+      ),
     activateUser: (userId: string) =>
-      rpc<Record<string, unknown>>("teamDirectory.activateUser", { userId }),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "teamDirectory.activateUser",
+        () =>
+          requestJson(`/api/admin/users/${userId}/activate`, {
+            method: "POST",
+          }),
+        { userId },
+      ),
     sendOnboardingInvite: (userId: string) =>
-      rpc<Record<string, unknown>>("teamDirectory.sendOnboardingInvite", {
-        userId,
-      }),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "teamDirectory.sendOnboardingInvite",
+        () =>
+          requestJson(`/api/admin/users/${userId}/send-onboarding`, {
+            method: "POST",
+          }),
+        { userId },
+      ),
     getUser: (userId: string) =>
-      rpc<Record<string, unknown>>("teamDirectory.getUser", { userId }),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "teamDirectory.getUser",
+        () => requestJson(`/api/admin/users/${userId}`),
+        { userId },
+      ),
     updateUser: (input: TeamDirectoryUpdateUserInput) =>
-      rpc<Record<string, unknown>>("teamDirectory.updateUser", input),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "teamDirectory.updateUser",
+        () => {
+          const { userId, ...body } = input;
+          return requestJson(`/api/admin/users/${userId}`, {
+            method: "PATCH",
+            body: JSON.stringify(body),
+          });
+        },
+        input,
+      ),
     deleteUser: (userId: string) =>
-      rpc<Record<string, unknown>>("teamDirectory.deleteUser", { userId }),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "teamDirectory.deleteUser",
+        () =>
+          requestJson(`/api/admin/users/${userId}`, {
+            method: "DELETE",
+          }),
+        { userId },
+      ),
     listTemplates: () =>
-      rpc<Array<Record<string, unknown>>>("teamDirectory.listTemplates"),
+      rpcWithRouteFallback<Array<Record<string, unknown>>>(
+        "teamDirectory.listTemplates",
+        () => requestJson("/api/admin/templates"),
+      ),
     listEmails: (userId: string, limit = 10) =>
-      rpc<Array<Record<string, unknown>>>("teamDirectory.listEmails", {
-        userId,
-        limit,
-      }),
+      rpcWithRouteFallback<Array<Record<string, unknown>>>(
+        "teamDirectory.listEmails",
+        () => requestJson(`/api/admin/emails?recipient_user_id=${userId}&limit=${limit}`),
+        { userId, limit },
+      ),
     getSchedule: (userId: string) =>
-      rpc<Record<string, unknown>>("teamDirectory.getSchedule", { userId }),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "teamDirectory.getSchedule",
+        () => requestJson(`/api/admin/users/${userId}/schedule`),
+        { userId },
+      ),
     saveSchedule: (userId: string, schedule: unknown) =>
-      rpc<Record<string, unknown>>("teamDirectory.saveSchedule", {
-        userId,
-        schedule,
-      }),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "teamDirectory.saveSchedule",
+        () =>
+          requestJson(`/api/admin/users/${userId}/schedule`, {
+            method: "PUT",
+            body: JSON.stringify(schedule),
+          }),
+        { userId, schedule },
+      ),
     assignTemplate: (userId: string, templateId: string) =>
-      rpc<Record<string, unknown>>("teamDirectory.assignTemplate", {
-        userId,
-        templateId,
-      }),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "teamDirectory.assignTemplate",
+        () =>
+          requestJson(`/api/admin/users/${userId}/assign-template`, {
+            method: "POST",
+            body: JSON.stringify({ templateId }),
+          }),
+        { userId, templateId },
+      ),
     completeOnboarding: (userId: string) =>
-      rpc<Record<string, unknown>>("teamDirectory.completeOnboarding", {
-        userId,
-      }),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "teamDirectory.completeOnboarding",
+        () =>
+          requestJson(`/api/admin/users/${userId}/complete-onboarding`, {
+            method: "POST",
+          }),
+        { userId },
+      ),
     resetOnboarding: (userId: string) =>
-      rpc<Record<string, unknown>>("teamDirectory.resetOnboarding", {
-        userId,
-      }),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "teamDirectory.resetOnboarding",
+        () =>
+          requestJson(`/api/admin/users/${userId}/reset-onboarding`, {
+            method: "POST",
+          }),
+        { userId },
+      ),
     sendPasswordReset: (userId: string) =>
-      rpc<Record<string, unknown>>("teamDirectory.sendPasswordReset", {
-        userId,
-      }),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "teamDirectory.sendPasswordReset",
+        () =>
+          requestJson(`/api/admin/users/${userId}/send-password-reset`, {
+            method: "POST",
+          }),
+        { userId },
+      ),
   };
 
   const time = {
-    getStatus: () => rpc<Record<string, unknown>>("time.getStatus"),
+    getStatus: () =>
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "time.getStatus",
+        () => requestJson("/api/me/time"),
+      ),
     submitAction: (input: TimeActionInput) =>
-      rpc<Record<string, unknown>>("time.submitAction", input),
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "time.submitAction",
+        () =>
+          requestJson("/api/me/time", {
+            method: "POST",
+            body: JSON.stringify(input),
+          }),
+        input,
+      ),
   };
 
   return {
