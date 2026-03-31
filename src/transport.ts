@@ -4,6 +4,15 @@ const DEFAULT_RPC_TIMEOUT_MS = 15000;
 type TeamAppSdkRequestBodyType = "json" | "text" | "form-data";
 type TeamAppSdkResponseDataType = "json" | "text" | "blob";
 
+type TeamRpcMethodName =
+  | "auth.getCurrentUser"
+  | "auth.logout"
+  | "accessControl.listUsers"
+  | "accessControl.listJobs"
+  | "accessControl.updateUser"
+  | "accessControl.activateUser"
+  | "accessControl.listAudit";
+
 interface TeamAppSdkSerializedFile {
   filename: string;
   type?: string | null;
@@ -30,11 +39,36 @@ export interface TeamAppSdkConfig {
   timeoutMs?: number;
 }
 
-interface TeamAppSdkRequestMessage {
+export interface AccessControlUpdateUserInput {
+  userId: string;
+  company_email?: string | null;
+  role?: string;
+  status?: string;
+  global_role?: string;
+  job_title?: string | null;
+  department?: string | null;
+  job_positions?: Array<{
+    title: string;
+    department?: string | null;
+    is_primary?: boolean;
+  }>;
+}
+
+interface TeamAppSdkApiRequestMessage {
   type: "shiryu:app-sdk:request";
   requestId: string;
   method: "api.request";
   payload: TeamAppSdkRequestOptions;
+}
+
+interface TeamAppSdkRpcRequestMessage {
+  type: "shiryu:app-sdk:request";
+  requestId: string;
+  method: "rpc.call";
+  payload: {
+    name: TeamRpcMethodName;
+    args?: unknown;
+  };
 }
 
 interface TeamAppSdkResponseMessage {
@@ -201,28 +235,34 @@ async function serializeRequestOptions(
   };
 }
 
+function isResponseForRequest(
+  event: MessageEvent,
+  parentOrigin: string,
+  requestId: string,
+) {
+  if (event.origin !== parentOrigin) return false;
+  const payload = event.data as TeamAppSdkResponseMessage | null;
+  return Boolean(
+    payload &&
+      payload.type === "shiryu:app-sdk:response" &&
+      payload.requestId === requestId,
+  );
+}
+
 export function createTeamAppSdk(config: TeamAppSdkConfig = {}) {
   const teamOrigin = config.teamOrigin || DEFAULT_TEAM_ORIGIN;
   const timeoutMs = config.timeoutMs || DEFAULT_RPC_TIMEOUT_MS;
 
-  async function request(
-    path: string,
-    options: RequestInit = {},
-  ): Promise<TeamAppSdkResponse> {
+  function sendMessage(
+    message: TeamAppSdkApiRequestMessage | TeamAppSdkRpcRequestMessage,
+  ) {
     if (!supportsParentSdk()) {
       throw new Error("This app must be opened from Shiryu Team.");
     }
 
     const parentOrigin = getParentOrigin(teamOrigin);
-    const requestId = createRequestId();
-    const message: TeamAppSdkRequestMessage = {
-      type: "shiryu:app-sdk:request",
-      requestId,
-      method: "api.request",
-      payload: await serializeRequestOptions(path, options),
-    };
 
-    return new Promise((resolve, reject) => {
+    return new Promise<TeamAppSdkResponse>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
         window.removeEventListener("message", handleMessage);
         reject(
@@ -231,16 +271,11 @@ export function createTeamAppSdk(config: TeamAppSdkConfig = {}) {
       }, timeoutMs);
 
       function handleMessage(event: MessageEvent) {
-        if (event.origin !== parentOrigin) return;
-        const payload = event.data as TeamAppSdkResponseMessage | null;
-        if (
-          !payload ||
-          payload.type !== "shiryu:app-sdk:response" ||
-          payload.requestId !== requestId
-        ) {
+        if (!isResponseForRequest(event, parentOrigin, message.requestId)) {
           return;
         }
 
+        const payload = event.data as TeamAppSdkResponseMessage;
         window.clearTimeout(timeout);
         window.removeEventListener("message", handleMessage);
 
@@ -249,9 +284,7 @@ export function createTeamAppSdk(config: TeamAppSdkConfig = {}) {
             new TeamAppSdkResponse(
               false,
               payload.status,
-              {
-                error: payload.error,
-              },
+              { error: payload.error },
               payload.dataType,
               payload.mimeType,
             ),
@@ -275,21 +308,52 @@ export function createTeamAppSdk(config: TeamAppSdkConfig = {}) {
     });
   }
 
-  async function getCurrentUser() {
-    const response = await request("/api/auth/me");
+  async function request(
+    path: string,
+    options: RequestInit = {},
+  ): Promise<TeamAppSdkResponse> {
+    const message: TeamAppSdkApiRequestMessage = {
+      type: "shiryu:app-sdk:request",
+      requestId: createRequestId(),
+      method: "api.request",
+      payload: await serializeRequestOptions(path, options),
+    };
+
+    return sendMessage(message);
+  }
+
+  async function rpc<T = unknown>(
+    name: TeamRpcMethodName,
+    args?: unknown,
+  ): Promise<T> {
+    const response = await sendMessage({
+      type: "shiryu:app-sdk:request",
+      requestId: createRequestId(),
+      method: "rpc.call",
+      payload: { name, args },
+    });
+
+    const payload = await response.json<{ error?: string } | T>();
     if (!response.ok) {
-      const data = await response.json<{ error?: string }>();
-      throw new Error(data.error || "Unable to load the current Team session.");
+      throw new Error(
+        typeof payload === "object" &&
+          payload !== null &&
+          "error" in payload &&
+          typeof payload.error === "string"
+          ? payload.error
+          : `Team RPC failed for ${name}.`,
+      );
     }
-    return response.json<Record<string, unknown>>();
+
+    return payload as T;
+  }
+
+  async function getCurrentUser() {
+    return rpc<Record<string, unknown>>("auth.getCurrentUser");
   }
 
   async function logout() {
-    const response = await request("/api/auth/logout", { method: "POST" });
-    if (!response.ok) {
-      const data = await response.json<{ error?: string }>();
-      throw new Error(data.error || "Unable to sign out of Shiryu Team.");
-    }
+    await rpc("auth.logout");
   }
 
   function createApiFetch(onUnauthorized?: () => void) {
@@ -310,10 +374,27 @@ export function createTeamAppSdk(config: TeamAppSdkConfig = {}) {
     };
   }
 
+  const accessControl = {
+    listUsers: () => rpc<Array<Record<string, unknown>>>("accessControl.listUsers"),
+    listJobs: () => rpc<Array<Record<string, unknown>>>("accessControl.listJobs"),
+    updateUser: (input: AccessControlUpdateUserInput) =>
+      rpc<Record<string, unknown>>("accessControl.updateUser", input),
+    activateUser: (userId: string) =>
+      rpc<Record<string, unknown>>("accessControl.activateUser", { userId }),
+    listAudit: (params?: Record<string, string | number | boolean | undefined>) =>
+      rpc<Array<Record<string, unknown>>>("accessControl.listAudit", params),
+  };
+
   return {
     request,
+    rpc,
     getCurrentUser,
     logout,
     createApiFetch,
+    accessControl,
   };
+}
+
+export function createTeamWidgetSdk(config: TeamAppSdkConfig = {}) {
+  return createTeamAppSdk(config);
 }
