@@ -11,7 +11,25 @@ type TeamRpcMethodName =
   | "accessControl.listJobs"
   | "accessControl.updateUser"
   | "accessControl.activateUser"
-  | "accessControl.listAudit";
+  | "accessControl.listAudit"
+  | "teamDirectory.listUsers"
+  | "teamDirectory.listJobs"
+  | "teamDirectory.createUser"
+  | "teamDirectory.activateUser"
+  | "teamDirectory.sendOnboardingInvite"
+  | "teamDirectory.getUser"
+  | "teamDirectory.updateUser"
+  | "teamDirectory.deleteUser"
+  | "teamDirectory.listTemplates"
+  | "teamDirectory.listEmails"
+  | "teamDirectory.getSchedule"
+  | "teamDirectory.saveSchedule"
+  | "teamDirectory.assignTemplate"
+  | "teamDirectory.completeOnboarding"
+  | "teamDirectory.resetOnboarding"
+  | "teamDirectory.sendPasswordReset"
+  | "time.getStatus"
+  | "time.submitAction";
 
 interface TeamAppSdkSerializedFile {
   filename: string;
@@ -52,6 +70,46 @@ export interface AccessControlUpdateUserInput {
     department?: string | null;
     is_primary?: boolean;
   }>;
+}
+
+export interface TeamDirectoryCreateUserInput {
+  name: string;
+  email: string;
+  password?: string;
+  role: string;
+  employment_type?: string;
+  is_system_admin?: boolean;
+  company_email?: string;
+  position_applied_for?: string;
+  job_title?: string;
+  department?: string;
+  start_date?: string;
+}
+
+export interface TeamDirectoryUpdateUserInput {
+  userId: string;
+  status?: string;
+  role?: string;
+  position_applied_for?: string | null;
+  job_title?: string | null;
+  department?: string | null;
+  start_date?: string | null;
+  global_role?: string | null;
+  employment_type?: string | null;
+  is_system_admin?: boolean;
+  company_email?: string | null;
+  personal_email_summary_enabled?: boolean;
+  job_positions?: Array<{
+    title?: string;
+    department?: string | null;
+    is_primary?: boolean;
+  }>;
+}
+
+export interface TimeActionInput {
+  action: "in" | "out" | "break_start" | "break_end";
+  notes?: string;
+  breakType?: "break" | "lunch";
 }
 
 interface TeamAppSdkApiRequestMessage {
@@ -385,6 +443,66 @@ export function createTeamAppSdk(config: TeamAppSdkConfig = {}) {
       rpc<Array<Record<string, unknown>>>("accessControl.listAudit", params),
   };
 
+  const teamDirectory = {
+    listUsers: (canManageDirectory = true) =>
+      rpc<Array<Record<string, unknown>>>("teamDirectory.listUsers", {
+        canManageDirectory,
+      }),
+    listJobs: () =>
+      rpc<Array<Record<string, unknown>>>("teamDirectory.listJobs"),
+    createUser: (input: TeamDirectoryCreateUserInput) =>
+      rpc<Record<string, unknown>>("teamDirectory.createUser", input),
+    activateUser: (userId: string) =>
+      rpc<Record<string, unknown>>("teamDirectory.activateUser", { userId }),
+    sendOnboardingInvite: (userId: string) =>
+      rpc<Record<string, unknown>>("teamDirectory.sendOnboardingInvite", {
+        userId,
+      }),
+    getUser: (userId: string) =>
+      rpc<Record<string, unknown>>("teamDirectory.getUser", { userId }),
+    updateUser: (input: TeamDirectoryUpdateUserInput) =>
+      rpc<Record<string, unknown>>("teamDirectory.updateUser", input),
+    deleteUser: (userId: string) =>
+      rpc<Record<string, unknown>>("teamDirectory.deleteUser", { userId }),
+    listTemplates: () =>
+      rpc<Array<Record<string, unknown>>>("teamDirectory.listTemplates"),
+    listEmails: (userId: string, limit = 10) =>
+      rpc<Array<Record<string, unknown>>>("teamDirectory.listEmails", {
+        userId,
+        limit,
+      }),
+    getSchedule: (userId: string) =>
+      rpc<Record<string, unknown>>("teamDirectory.getSchedule", { userId }),
+    saveSchedule: (userId: string, schedule: unknown) =>
+      rpc<Record<string, unknown>>("teamDirectory.saveSchedule", {
+        userId,
+        schedule,
+      }),
+    assignTemplate: (userId: string, templateId: string) =>
+      rpc<Record<string, unknown>>("teamDirectory.assignTemplate", {
+        userId,
+        templateId,
+      }),
+    completeOnboarding: (userId: string) =>
+      rpc<Record<string, unknown>>("teamDirectory.completeOnboarding", {
+        userId,
+      }),
+    resetOnboarding: (userId: string) =>
+      rpc<Record<string, unknown>>("teamDirectory.resetOnboarding", {
+        userId,
+      }),
+    sendPasswordReset: (userId: string) =>
+      rpc<Record<string, unknown>>("teamDirectory.sendPasswordReset", {
+        userId,
+      }),
+  };
+
+  const time = {
+    getStatus: () => rpc<Record<string, unknown>>("time.getStatus"),
+    submitAction: (input: TimeActionInput) =>
+      rpc<Record<string, unknown>>("time.submitAction", input),
+  };
+
   return {
     request,
     rpc,
@@ -392,6 +510,8 @@ export function createTeamAppSdk(config: TeamAppSdkConfig = {}) {
     logout,
     createApiFetch,
     accessControl,
+    teamDirectory,
+    time,
   };
 }
 
