@@ -47,11 +47,13 @@ export function applyEmbeddedSurfaceSettings(
 
   styleTag.textContent = `
     html, body {
+      height: 100%;
       min-height: 100%;
+      overflow: hidden;
     }
 
     body {
-      overflow: auto;
+      zoom: var(--shiryu-surface-scale);
     }
 
     #root,
@@ -59,9 +61,21 @@ export function applyEmbeddedSurfaceSettings(
     [data-shiryu-surface-root="true"] {
       width: calc(100% / var(--shiryu-surface-scale));
       min-height: calc(100% / var(--shiryu-surface-scale));
-      transform: scale(var(--shiryu-surface-scale));
-      transform-origin: top left;
+      height: calc(100% / var(--shiryu-surface-scale));
+      overflow: hidden;
+    }
+
+    @supports not (zoom: 1) {
+      body {
+        zoom: normal;
+      }
+
+      #root,
+      #__next,
+      [data-shiryu-surface-root="true"] {
+        transform: scale(var(--shiryu-surface-scale));
+        transform-origin: top left;
+      }
     }
   `;
 }
-
