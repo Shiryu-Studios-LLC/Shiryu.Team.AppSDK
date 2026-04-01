@@ -27,12 +27,6 @@ export function applyEmbeddedSurfaceSettings(
     SURFACE_STYLE_ID,
   ) as HTMLStyleElement | null;
 
-  if (!scale || scale === 1) {
-    existingStyle?.remove();
-    document.documentElement.style.removeProperty("--shiryu-surface-scale");
-    return;
-  }
-
   let styleTag = existingStyle;
   if (!styleTag) {
     styleTag = document.createElement("style");
@@ -40,10 +34,14 @@ export function applyEmbeddedSurfaceSettings(
     document.head.appendChild(styleTag);
   }
 
-  document.documentElement.style.setProperty(
-    "--shiryu-surface-scale",
-    String(scale),
-  );
+  if (scale && scale !== 1) {
+    document.documentElement.style.setProperty(
+      "--shiryu-surface-scale",
+      String(scale),
+    );
+  } else {
+    document.documentElement.style.removeProperty("--shiryu-surface-scale");
+  }
 
   styleTag.textContent = `
     html, body {
@@ -53,29 +51,43 @@ export function applyEmbeddedSurfaceSettings(
     }
 
     body {
-      zoom: var(--shiryu-surface-scale);
+      margin: 0;
+      padding: 0;
+      ${scale && scale !== 1 ? "zoom: var(--shiryu-surface-scale);" : ""}
     }
 
     #root,
     #__next,
     [data-shiryu-surface-root="true"] {
-      width: calc(100% / var(--shiryu-surface-scale));
-      min-height: calc(100% / var(--shiryu-surface-scale));
-      height: calc(100% / var(--shiryu-surface-scale));
+      width: 100%;
+      height: 100%;
+      min-height: 100%;
       overflow: hidden;
     }
+
+    ${scale && scale !== 1 ? `
+    #root,
+    #__next,
+    [data-shiryu-surface-root="true"] {
+      width: calc(100% / var(--shiryu-surface-scale));
+      height: calc(100% / var(--shiryu-surface-scale));
+      min-height: calc(100% / var(--shiryu-surface-scale));
+    }
+    ` : ""}
 
     @supports not (zoom: 1) {
       body {
         zoom: normal;
       }
 
+      ${scale && scale !== 1 ? `
       #root,
       #__next,
       [data-shiryu-surface-root="true"] {
         transform: scale(var(--shiryu-surface-scale));
         transform-origin: top left;
       }
+      ` : ""}
     }
   `;
 }
