@@ -106,9 +106,6 @@ export function applyEmbeddedSurfaceSettings(
       height: 100%;
       min-height: 100%;
       overflow: hidden;
-      width: calc(100% / var(${SURFACE_SCALE_PROP}, 1));
-      height: calc(100% / var(${SURFACE_SCALE_PROP}, 1));
-      min-height: calc(100% / var(${SURFACE_SCALE_PROP}, 1));
     }
 
     @supports not (zoom: 1) {
@@ -119,6 +116,9 @@ export function applyEmbeddedSurfaceSettings(
       #root,
       #__next,
       [data-shiryu-surface-root="true"] {
+        width: calc(100% / var(${SURFACE_SCALE_PROP}, 1));
+        height: calc(100% / var(${SURFACE_SCALE_PROP}, 1));
+        min-height: calc(100% / var(${SURFACE_SCALE_PROP}, 1));
         transform: scale(var(${SURFACE_SCALE_PROP}, 1));
         transform-origin: top left;
       }
