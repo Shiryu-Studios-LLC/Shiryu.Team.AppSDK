@@ -10,6 +10,10 @@ type TeamAppSdkResponseDataType = "json" | "text" | "blob";
 type TeamRpcMethodName =
   | "auth.getCurrentUser"
   | "auth.logout"
+  | "announcements.list"
+  | "announcements.create"
+  | "announcements.update"
+  | "announcements.delete"
   | "accessControl.listUsers"
   | "accessControl.listJobs"
   | "accessControl.updateUser"
@@ -114,6 +118,16 @@ export interface TimeActionInput {
   action: "in" | "out" | "break_start" | "break_end";
   notes?: string;
   breakType?: "break" | "lunch";
+}
+
+export interface AnnouncementInput {
+  title: string;
+  summary?: string | null;
+  body: string;
+  badge?: string | null;
+  tone?: "leadership" | "policy" | "workspace" | "operations";
+  pinned?: boolean;
+  status?: "draft" | "published" | "archived";
 }
 
 interface TeamAppSdkApiRequestMessage {
@@ -523,6 +537,69 @@ export function createTeamAppSdk(config: TeamAppSdkConfig = {}) {
       ),
   };
 
+  const announcements = {
+    list: (options?: {
+      status?: "draft" | "published" | "archived" | "all";
+      includeArchived?: boolean;
+    }) =>
+      rpcWithRouteFallback<Array<Record<string, unknown>>>(
+        "announcements.list",
+        () => {
+          const searchParams = new URLSearchParams();
+          if (options?.status) searchParams.set("status", options.status);
+          if (options?.includeArchived) searchParams.set("includeArchived", "1");
+          const query = searchParams.toString();
+          return requestJson(`/api/announcements${query ? `?${query}` : ""}`).then(
+            (payload) =>
+              ((payload as { announcements?: Array<Record<string, unknown>> })
+                .announcements || []),
+          );
+        },
+        options,
+      ),
+    create: (input: AnnouncementInput) =>
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "announcements.create",
+        () =>
+          requestJson("/api/announcements", {
+            method: "POST",
+            body: JSON.stringify(input),
+          }).then(
+            (payload) =>
+              ((payload as { announcement?: Record<string, unknown> })
+                .announcement || {}),
+          ),
+        input,
+      ),
+    update: (id: string, input: Partial<AnnouncementInput>) =>
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "announcements.update",
+        () =>
+          requestJson(`/api/announcements/${id}`, {
+            method: "PATCH",
+            body: JSON.stringify(input),
+          }).then(
+            (payload) =>
+              ((payload as { announcement?: Record<string, unknown> })
+                .announcement || {}),
+          ),
+        { id, ...input },
+      ),
+    delete: (id: string) =>
+      rpcWithRouteFallback<Record<string, unknown>>(
+        "announcements.delete",
+        () =>
+          requestJson(`/api/announcements/${id}`, {
+            method: "DELETE",
+          }).then(
+            (payload) =>
+              ((payload as { announcement?: Record<string, unknown> })
+                .announcement || {}),
+          ),
+        { id },
+      ),
+  };
+
   const teamDirectory = {
     listUsers: (canManageDirectory = true) =>
       rpcWithRouteFallback<Array<Record<string, unknown>>>(
@@ -683,6 +760,7 @@ export function createTeamAppSdk(config: TeamAppSdkConfig = {}) {
     getCurrentUser,
     logout,
     createApiFetch,
+    announcements,
     accessControl,
     teamDirectory,
     time,
