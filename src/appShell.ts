@@ -102,7 +102,15 @@ export function applyEmbeddedAppShellTheme(theme?: "light" | "dark" | "auto") {
   }
 
   styleTag.textContent = `
-    html, body, #root {
+    html, body {
+      height: 100%;
+      min-height: 100%;
+      overflow: hidden;
+    }
+
+    #root {
+      display: flex;
+      flex-direction: column;
       height: 100%;
       min-height: 100%;
       overflow: hidden;
@@ -138,7 +146,9 @@ export function applyEmbeddedAppShellTheme(theme?: "light" | "dark" | "auto") {
 
     .shiryu-app-shell {
       display: flex;
+      flex: 1 1 auto;
       height: 100%;
+      max-height: 100%;
       min-height: 0;
       overflow: hidden;
       background: var(--shiryu-shell-bg);
@@ -266,17 +276,21 @@ export function applyEmbeddedAppShellTheme(theme?: "light" | "dark" | "auto") {
 
     .shiryu-app-sidebar-scroll,
     .shiryu-app-scroll {
+      flex: 1 1 auto;
       min-height: 0;
       overflow-y: auto;
+      overflow-x: hidden;
     }
 
     .shiryu-app-main {
       display: flex;
       min-width: 0;
       min-height: 0;
+      max-height: 100%;
       flex: 1;
       flex-direction: column;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       background: var(--shiryu-shell-main);
     }
 
