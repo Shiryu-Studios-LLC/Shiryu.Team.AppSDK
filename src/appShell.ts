@@ -69,6 +69,12 @@ export function applyEmbeddedAppShellTheme() {
   }
 
   styleTag.textContent = `
+    html, body, #root {
+      height: 100%;
+      min-height: 100%;
+      overflow: hidden;
+    }
+
     :root {
       --shiryu-shell-bg: #1e1f22;
       --shiryu-shell-sidebar: #232428;
@@ -85,7 +91,8 @@ export function applyEmbeddedAppShellTheme() {
 
     .shiryu-app-shell {
       display: flex;
-      min-height: 100%;
+      height: 100%;
+      min-height: 0;
       overflow: hidden;
       background: var(--shiryu-shell-bg);
       color: var(--shiryu-shell-text);
@@ -219,6 +226,7 @@ export function applyEmbeddedAppShellTheme() {
     .shiryu-app-main {
       display: flex;
       min-width: 0;
+      min-height: 0;
       flex: 1;
       flex-direction: column;
       overflow: hidden;
