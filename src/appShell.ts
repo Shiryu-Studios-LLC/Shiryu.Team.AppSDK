@@ -4,6 +4,16 @@ function isEmbeddedSurface() {
   return typeof window !== "undefined" && window.parent !== window;
 }
 
+function resolveShellTheme() {
+  if (typeof window === "undefined") return "dark";
+  const requestedTheme = new URLSearchParams(window.location.search).get("theme");
+  if (requestedTheme === "light" || requestedTheme === "dark") return requestedTheme;
+  if (requestedTheme === "auto") {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 export type ShiryuAppShellMode = "standard" | "compact";
 
 export interface ShiryuAppShellClassNames {
@@ -60,6 +70,7 @@ export function getShiryuAppShellClassNames(mode: ShiryuAppShellMode = "standard
 
 export function applyEmbeddedAppShellTheme() {
   if (typeof document === "undefined" || !isEmbeddedSurface()) return;
+  const resolvedTheme = resolveShellTheme();
 
   let styleTag = document.getElementById(APP_SHELL_STYLE_ID) as HTMLStyleElement | null;
   if (!styleTag) {
@@ -87,6 +98,20 @@ export function applyEmbeddedAppShellTheme() {
       --shiryu-shell-text-muted: #94a3b8;
       --shiryu-shell-text-subtle: #6b7280;
       --shiryu-shell-accent: #818cf8;
+    }
+
+    :root[data-shiryu-theme="light"] {
+      --shiryu-shell-bg: #eef1f7;
+      --shiryu-shell-sidebar: #e4e8f2;
+      --shiryu-shell-panel: #ffffff;
+      --shiryu-shell-main: #f5f7fb;
+      --shiryu-shell-elevated: #dde4f2;
+      --shiryu-shell-border: rgba(15, 23, 42, 0.08);
+      --shiryu-shell-border-strong: rgba(15, 23, 42, 0.12);
+      --shiryu-shell-text: #0f172a;
+      --shiryu-shell-text-muted: #475569;
+      --shiryu-shell-text-subtle: #64748b;
+      --shiryu-shell-accent: #5865f2;
     }
 
     .shiryu-app-shell {
@@ -185,7 +210,7 @@ export function applyEmbeddedAppShellTheme() {
       min-height: 46px;
       padding: 12px 14px;
       border-radius: 18px;
-      color: #dbdee1;
+      color: var(--shiryu-shell-text-muted);
       text-decoration: none;
       transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
     }
@@ -199,7 +224,7 @@ export function applyEmbeddedAppShellTheme() {
     .shiryu-app-sidebar-nav-link:hover,
     .shiryu-app-sidebar-nav-link-active {
       background: rgba(129, 140, 248, 0.16);
-      color: #ffffff;
+      color: var(--shiryu-shell-text);
       transform: translateX(2px);
     }
 
@@ -260,7 +285,7 @@ export function applyEmbeddedAppShellTheme() {
       font-weight: 700;
       letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: #cbd5e1;
+      color: var(--shiryu-shell-text-muted);
     }
 
     .shiryu-section-kicker {
@@ -329,4 +354,8 @@ export function applyEmbeddedAppShellTheme() {
       }
     }
   `;
+
+  document.documentElement.dataset.shiryuTheme = resolvedTheme;
+  document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
+  document.documentElement.style.colorScheme = resolvedTheme;
 }
