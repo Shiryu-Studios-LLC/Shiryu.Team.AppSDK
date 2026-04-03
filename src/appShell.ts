@@ -102,8 +102,8 @@ export function applyEmbeddedAppShellTheme() {
 
     .shiryu-app-shell-compact .shiryu-app-sidebar,
     .shiryu-app-sidebar-compact {
-      width: 92px;
-      min-width: 92px;
+      width: 97px;
+      min-width: 97px;
       align-items: center;
       gap: 16px;
       padding: 18px 10px;
