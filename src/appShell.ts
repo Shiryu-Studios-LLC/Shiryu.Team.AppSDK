@@ -122,8 +122,7 @@ export function applyEmbeddedAppShellTheme() {
 
     .shiryu-app-shell-compact .shiryu-app-sidebar-brand,
     .shiryu-app-sidebar-compact .shiryu-app-sidebar-brand {
-      display: flex;
-      justify-content: center;
+      display: none;
     }
 
     .shiryu-app-shell-compact .shiryu-app-sidebar-brand-copy,
