@@ -1,15 +1,30 @@
 const APP_SHELL_STYLE_ID = "shiryu-team-sdk-app-shell";
+const APP_SHELL_THEME_LISTENER_FLAG = "shiryuTeamSdkThemeListener";
 
 function isEmbeddedSurface() {
   return typeof window !== "undefined" && window.parent !== window;
 }
 
-function resolveShellTheme() {
+function resolveShellTheme(theme?: "light" | "dark" | "auto") {
   if (typeof window === "undefined") return "dark";
-  const requestedTheme = new URLSearchParams(window.location.search).get("theme");
+  const requestedTheme =
+    theme || (new URLSearchParams(window.location.search).get("theme") as
+      | "light"
+      | "dark"
+      | "auto"
+      | null);
   if (requestedTheme === "light" || requestedTheme === "dark") return requestedTheme;
   if (requestedTheme === "auto") {
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  try {
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "light" || savedTheme === "dark") return savedTheme;
+    if (savedTheme === "auto") {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+  } catch {
+    // Ignore storage lookup failures.
   }
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
@@ -68,9 +83,16 @@ export function getShiryuAppShellClassNames(mode: ShiryuAppShellMode = "standard
   };
 }
 
-export function applyEmbeddedAppShellTheme() {
+export function syncEmbeddedAppShellTheme(theme?: "light" | "dark" | "auto") {
   if (typeof document === "undefined" || !isEmbeddedSurface()) return;
-  const resolvedTheme = resolveShellTheme();
+  const resolvedTheme = resolveShellTheme(theme);
+  document.documentElement.dataset.shiryuTheme = resolvedTheme;
+  document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
+  document.documentElement.style.colorScheme = resolvedTheme;
+}
+
+export function applyEmbeddedAppShellTheme(theme?: "light" | "dark" | "auto") {
+  if (typeof document === "undefined" || !isEmbeddedSurface()) return;
 
   let styleTag = document.getElementById(APP_SHELL_STYLE_ID) as HTMLStyleElement | null;
   if (!styleTag) {
@@ -355,7 +377,18 @@ export function applyEmbeddedAppShellTheme() {
     }
   `;
 
-  document.documentElement.dataset.shiryuTheme = resolvedTheme;
-  document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
-  document.documentElement.style.colorScheme = resolvedTheme;
+  syncEmbeddedAppShellTheme(theme);
+
+  const listenerWindow = window as typeof window & {
+    [APP_SHELL_THEME_LISTENER_FLAG]?: boolean;
+  };
+
+  if (!listenerWindow[APP_SHELL_THEME_LISTENER_FLAG]) {
+    window.addEventListener("message", (event: MessageEvent) => {
+      const payload = event.data as { type?: string; theme?: "light" | "dark" | "auto" } | null;
+      if (!payload || payload.type !== "shiryu:theme-sync") return;
+      syncEmbeddedAppShellTheme(payload.theme);
+    });
+    listenerWindow[APP_SHELL_THEME_LISTENER_FLAG] = true;
+  }
 }
