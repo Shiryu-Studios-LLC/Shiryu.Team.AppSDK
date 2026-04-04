@@ -127,30 +127,30 @@ export function applyEmbeddedAppShellTheme(theme?: "light" | "dark" | "auto") {
     }
 
     :root {
-      --shiryu-shell-bg: #1e1f22;
+      --shiryu-shell-bg: #313338;
       --shiryu-shell-sidebar: #232428;
       --shiryu-shell-panel: #2b2d31;
       --shiryu-shell-main: #313338;
       --shiryu-shell-elevated: #404249;
-      --shiryu-shell-border: rgba(255, 255, 255, 0.05);
-      --shiryu-shell-border-strong: rgba(255, 255, 255, 0.08);
-      --shiryu-shell-text: #ffffff;
-      --shiryu-shell-text-muted: #94a3b8;
+      --shiryu-shell-border: rgba(255, 255, 255, 0.06);
+      --shiryu-shell-border-strong: rgba(255, 255, 255, 0.1);
+      --shiryu-shell-text: #dbdee1;
+      --shiryu-shell-text-muted: #949ba4;
       --shiryu-shell-text-subtle: #6b7280;
-      --shiryu-shell-accent: #818cf8;
+      --shiryu-shell-accent: #5865F2;
     }
 
     :root[data-shiryu-theme="light"] {
-      --shiryu-shell-bg: #eef1f7;
-      --shiryu-shell-sidebar: #e4e8f2;
+      --shiryu-shell-bg: #f2f3f5;
+      --shiryu-shell-sidebar: #e3e5e8;
       --shiryu-shell-panel: #ffffff;
-      --shiryu-shell-main: #f5f7fb;
-      --shiryu-shell-elevated: #dde4f2;
+      --shiryu-shell-main: #f2f3f5;
+      --shiryu-shell-elevated: #e9eaed;
       --shiryu-shell-border: rgba(15, 23, 42, 0.08);
-      --shiryu-shell-border-strong: rgba(15, 23, 42, 0.12);
-      --shiryu-shell-text: #0f172a;
-      --shiryu-shell-text-muted: #475569;
-      --shiryu-shell-text-subtle: #64748b;
+      --shiryu-shell-border-strong: rgba(15, 23, 42, 0.14);
+      --shiryu-shell-text: #060607;
+      --shiryu-shell-text-muted: #4e5058;
+      --shiryu-shell-text-subtle: #6b7280;
       --shiryu-shell-accent: #5865f2;
     }
 
