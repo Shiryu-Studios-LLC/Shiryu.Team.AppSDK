@@ -10,6 +10,7 @@ type TeamAppSdkResponseDataType = "json" | "text" | "blob";
 type TeamRpcMethodName =
   | "auth.getCurrentUser"
   | "auth.logout"
+  | "theme.setTheme"
   | "announcements.list"
   | "announcements.create"
   | "announcements.update"
@@ -463,6 +464,10 @@ export function createTeamAppSdk(config: TeamAppSdkConfig = {}) {
 
   async function logout() {
     await rpc("auth.logout");
+  }
+
+  async function setTheme(theme: "light" | "dark" | "auto") {
+    await rpc("theme.setTheme", { theme });
   }
 
   function createApiFetch(onUnauthorized?: () => void) {
