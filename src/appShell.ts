@@ -1,3 +1,5 @@
+import { startHeartbeat, type TeamAppManifest } from "./heartbeat";
+
 const APP_SHELL_STYLE_ID = "shiryu-team-sdk-app-shell";
 const APP_SHELL_THEME_LISTENER_FLAG = "shiryuTeamSdkThemeListener";
 
@@ -101,7 +103,7 @@ export function syncEmbeddedAppShellTheme(theme?: "light" | "dark" | "auto") {
   document.documentElement.style.colorScheme = resolvedTheme;
 }
 
-export function applyEmbeddedAppShellTheme(theme?: "light" | "dark" | "auto") {
+export function applyEmbeddedAppShellTheme(theme?: "light" | "dark" | "auto", config?: { appId?: string; manifest?: TeamAppManifest }) {
   if (typeof document === "undefined" || !isEmbeddedSurface()) return;
 
   let styleTag = document.getElementById(APP_SHELL_STYLE_ID) as HTMLStyleElement | null;
@@ -342,6 +344,36 @@ export function applyEmbeddedAppShellTheme(theme?: "light" | "dark" | "auto") {
       color: var(--shiryu-shell-text-subtle);
     }
 
+    .shiryu-pill-live {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+    }
+
+    .shiryu-pill-pending {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+    }
+
+    .shiryu-pill-inactive {
+      background: rgba(100, 116, 139, 0.15);
+      color: #94a3b8;
+    }
+
+    :root[data-shiryu-theme="light"] .shiryu-pill-live {
+      background: rgba(16, 185, 129, 0.12);
+      color: #059669;
+    }
+
+    :root[data-shiryu-theme="light"] .shiryu-pill-pending {
+      background: rgba(245, 158, 11, 0.12);
+      color: #d97706;
+    }
+
+    :root[data-shiryu-theme="light"] .shiryu-pill-inactive {
+      background: rgba(100, 116, 139, 0.12);
+      color: #64748b;
+    }
+
     .shiryu-scrollbar {
       scrollbar-color: rgba(129, 140, 248, 0.55) transparent;
       scrollbar-width: thin;
@@ -461,6 +493,10 @@ export function applyEmbeddedAppShellTheme(theme?: "light" | "dark" | "auto") {
   `;
 
   syncEmbeddedAppShellTheme(theme);
+
+  if (isEmbeddedSurface()) {
+    startHeartbeat(config);
+  }
 
   const listenerWindow = window as typeof window & {
     [APP_SHELL_THEME_LISTENER_FLAG]?: boolean;

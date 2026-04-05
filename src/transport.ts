@@ -764,6 +764,7 @@ export function createTeamAppSdk(config: TeamAppSdkConfig = {}) {
     rpc,
     getCurrentUser,
     logout,
+    setTheme,
     createApiFetch,
     announcements,
     accessControl,
